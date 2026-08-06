@@ -1,12 +1,1 @@
-{
-  "name": "Field CRM",
-  "short_name": "Field CRM",
-  "description": "A clean field CRM for customers, estimates, notes, and scheduling.",
-  "start_url": "./",
-  "display": "standalone",
-  "background_color": "#0b0f0d",
-  "theme_color": "#0b0f0d",
-  "icons": [
-    {"src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable"}
-  ]
-}
+{"name":"Field CRM","short_name":"Field CRM","start_url":"./","display":"standalone","background_color":"#0b0f0d","theme_color":"#0b0f0d","icons":[{"src":"icon.svg","sizes":"any","type":"image/svg+xml"}]}
