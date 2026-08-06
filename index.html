@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#0b0f0d" />
+  <link rel="manifest" href="manifest.json" />
+  <link rel="apple-touch-icon" href="icon.svg" />
+  <title>Field CRM</title>
+  <style>
+    :root{--bg:#0b0f0d;--panel:#121814;--panel2:#171f1a;--line:#2a362d;--text:#edf3ee;--muted:#97a59a;--accent:#b7ff4a;--danger:#ff6b6b;--warn:#f4c15d}
+    *{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--text);font:15px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+    button,input,select,textarea{font:inherit}.app{min-height:100vh;padding-bottom:84px}.top{position:sticky;top:0;z-index:5;background:rgba(11,15,13,.94);backdrop-filter:blur(10px);border-bottom:1px solid var(--line);padding:16px 16px 12px}.brand{display:flex;justify-content:space-between;align-items:end}.brand h1{font-size:20px;letter-spacing:.12em;margin:0;text-transform:uppercase}.brand span{color:var(--muted);font-size:12px}
+    .screen{display:none;padding:16px}.screen.active{display:block}.grid{display:grid;gap:12px}.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px}.card h2,.card h3{margin:0 0 8px}.stat{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.stat .card{text-align:center}.num{font-size:24px;font-weight:800;color:var(--accent)}.label{color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.08em}
+    .btn{border:1px solid var(--line);background:var(--panel2);color:var(--text);border-radius:8px;padding:11px 13px;font-weight:700}.btn.primary{background:var(--accent);color:#0a0d0b;border-color:var(--accent)}.btn.danger{color:var(--danger)}.row{display:flex;gap:8px;align-items:center}.row>*{flex:1}.stack{display:grid;gap:8px}.field{display:grid;gap:5px}.field label{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}.field input,.field select,.field textarea{width:100%;background:#0f1411;color:var(--text);border:1px solid var(--line);border-radius:8px;padding:11px}.field textarea{min-height:90px;resize:vertical}.list{display:grid;gap:8px}.item{background:var(--panel);border:1px solid var(--line);border-radius:9px;padding:12px}.item strong{display:block}.meta{color:var(--muted);font-size:13px}.pill{display:inline-block;padding:4px 7px;border-radius:999px;border:1px solid var(--line);font-size:11px;text-transform:uppercase;letter-spacing:.05em}.pill.sent{color:var(--warn)}.pill.approved{color:var(--accent)}.pill.declined{color:var(--danger)}
+    .nav{position:fixed;bottom:0;left:0;right:0;display:grid;grid-template-columns:repeat(5,1fr);background:#0d120f;border-top:1px solid var(--line);padding:8px 8px calc(8px + env(safe-area-inset-bottom));z-index:10}.nav button{background:none;border:0;color:var(--muted);font-size:11px;padding:8px 2px}.nav button.active{color:var(--accent);font-weight:800}.empty{color:var(--muted);text-align:center;padding:28px 10px}.section-title{display:flex;justify-content:space-between;align-items:center;margin:0 0 10px}.section-title h2{margin:0;font-size:17px}.quick{display:grid;gap:8px}.search{margin:10px 0 12px}.search input{width:100%;background:#0f1411;color:var(--text);border:1px solid var(--line);border-radius:8px;padding:11px}.calendar-day{border-left:3px solid var(--accent)}
+  </style>
+</head>
+<body>
+<div class="app">
+  <header class="top"><div class="brand"><h1>Field CRM</h1><span id="todayLabel"></span></div></header>
+
+  <main>
+    <section id="today" class="screen active">
+      <div class="stat">
+        <div class="card"><div class="num" id="todayCount">0</div><div class="label">Today</div></div>
+        <div class="card"><div class="num" id="estimateCount">0</div><div class="label">Estimates</div></div>
+        <div class="card"><div class="num" id="followCount">0</div><div class="label">Follow-up</div></div>
+      </div>
+      <div class="card" style="margin-top:12px">
+        <div class="section-title"><h2>Quick Capture</h2></div>
+        <div class="quick">
+          <div class="field"><textarea id="quickText" placeholder="Example: Called Mark. Measure garage Friday at 9. Estimate needed."></textarea></div>
+          <div class="row"><button class="btn" id="dictateBtn">Dictate</button><button class="btn primary" id="saveQuickBtn">Save Note</button></div>
+        </div>
+      </div>
+      <div class="section-title" style="margin-top:16px"><h2>Due Today</h2></div>
+      <div id="todayList" class="list"></div>
+    </section>
+
+    <section id="customers" class="screen">
+      <div class="section-title"><h2>Customers</h2><button class="btn primary" onclick="openCustomerForm()">Add</button></div>
+      <div class="search"><input id="customerSearch" placeholder="Search customers" /></div>
+      <div id="customerForm" class="card" style="display:none;margin-bottom:12px">
+        <div class="stack">
+          <div class="field"><label>Name</label><input id="cName"></div>
+          <div class="field"><label>Phone</label><input id="cPhone" inputmode="tel"></div>
+          <div class="field"><label>Address</label><input id="cAddress"></div>
+          <div class="field"><label>Notes</label><textarea id="cNotes"></textarea></div>
+          <div class="row"><button class="btn" onclick="closeCustomerForm()">Cancel</button><button class="btn primary" onclick="saveCustomer()">Save</button></div>
+        </div>
+      </div>
+      <div id="customerList" class="list"></div>
+    </section>
+
+    <section id="estimates" class="screen">
+      <div class="section-title"><h2>Estimates</h2><button class="btn primary" onclick="openEstimateForm()">Add</button></div>
+      <div id="estimateForm" class="card" style="display:none;margin-bottom:12px">
+        <div class="stack">
+          <div class="field"><label>Customer</label><select id="eCustomer"></select></div>
+          <div class="field"><label>Project</label><input id="eProject"></div>
+          <div class="field"><label>Amount</label><input id="eAmount" inputmode="decimal"></div>
+          <div class="field"><label>Status</label><select id="eStatus"><option>Draft</option><option>Sent</option><option>Approved</option><option>Declined</option></select></div>
+          <div class="field"><label>Follow-up date</label><input id="eFollow" type="date"></div>
+          <div class="row"><button class="btn" onclick="closeEstimateForm()">Cancel</button><button class="btn primary" onclick="saveEstimate()">Save</button></div>
+        </div>
+      </div>
+      <div id="estimateList" class="list"></div>
+    </section>
+
+    <section id="calendar" class="screen">
+      <div class="section-title"><h2>Calendar</h2><button class="btn primary" onclick="openEventForm()">Add</button></div>
+      <div id="eventForm" class="card" style="display:none;margin-bottom:12px">
+        <div class="stack">
+          <div class="field"><label>Title</label><input id="evTitle"></div>
+          <div class="field"><label>Date</label><input id="evDate" type="date"></div>
+          <div class="field"><label>Time</label><input id="evTime" type="time"></div>
+          <div class="field"><label>Assigned to</label><select id="evOwner"><option>Ryan</option><option>Wife</option><option>Both</option></select></div>
+          <div class="field"><label>Notes</label><textarea id="evNotes"></textarea></div>
+          <div class="row"><button class="btn" onclick="closeEventForm()">Cancel</button><button class="btn primary" onclick="saveEvent()">Save</button></div>
+        </div>
+      </div>
+      <div id="eventList" class="list"></div>
+    </section>
+
+    <section id="settings" class="screen">
+      <div class="section-title"><h2>Settings</h2></div>
+      <div class="card stack">
+        <div><strong>Prototype mode</strong><div class="meta">Data is stored only on this device.</div></div>
+        <button class="btn" onclick="exportData()">Export Backup</button>
+        <label class="btn" style="text-align:center">Import Backup<input id="importFile" type="file" accept="application/json" hidden></label>
+        <button class="btn danger" onclick="clearAll()">Clear All Data</button>
+      </div>
+    </section>
+  </main>
+
+  <nav class="nav">
+    <button class="active" data-screen="today">TODAY</button>
+    <button data-screen="customers">CLIENTS</button>
+    <button data-screen="estimates">ESTIMATES</button>
+    <button data-screen="calendar">CALENDAR</button>
+    <button data-screen="settings">SETTINGS</button>
+  </nav>
+</div>
+<script>
+const KEY='field-crm-v1';
+let db=JSON.parse(localStorage.getItem(KEY)||'{"customers":[],"estimates":[],"events":[],"notes":[]}');
+const save=()=>{localStorage.setItem(KEY,JSON.stringify(db));renderAll()};
+const fmt=d=>new Date(d+'T12:00:00').toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'});
+const todayISO=()=>new Date().toISOString().slice(0,10);
+
+document.getElementById('todayLabel').textContent=new Date().toLocaleDateString(undefined,{weekday:'short',month:'short',day:'numeric'}).toUpperCase();
+document.querySelectorAll('.nav button').forEach(b=>b.onclick=()=>{document.querySelectorAll('.nav button').forEach(x=>x.classList.remove('active'));b.classList.add('active');document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));document.getElementById(b.dataset.screen).classList.add('active');});
+
+function openCustomerForm(){customerForm.style.display='block'} function closeCustomerForm(){customerForm.style.display='none'}
+function saveCustomer(){if(!cName.value.trim())return alert('Customer name required');db.customers.push({id:crypto.randomUUID(),name:cName.value.trim(),phone:cPhone.value.trim(),address:cAddress.value.trim(),notes:cNotes.value.trim()});cName.value=cPhone.value=cAddress.value=cNotes.value='';closeCustomerForm();save()}
+function deleteCustomer(id){if(confirm('Delete this customer?')){db.customers=db.customers.filter(x=>x.id!==id);save()}}
+
+function openEstimateForm(){fillCustomerSelect();estimateForm.style.display='block'} function closeEstimateForm(){estimateForm.style.display='none'}
+function saveEstimate(){if(!eCustomer.value||!eProject.value.trim())return alert('Customer and project required');db.estimates.push({id:crypto.randomUUID(),customerId:eCustomer.value,project:eProject.value.trim(),amount:eAmount.value.trim(),status:eStatus.value,follow:eFollow.value});eProject.value=eAmount.value=eFollow.value='';closeEstimateForm();save()}
+function deleteEstimate(id){if(confirm('Delete this estimate?')){db.estimates=db.estimates.filter(x=>x.id!==id);save()}}
+
+function openEventForm(){eventForm.style.display='block';evDate.value=todayISO()} function closeEventForm(){eventForm.style.display='none'}
+function saveEvent(){if(!evTitle.value.trim()||!evDate.value)return alert('Title and date required');db.events.push({id:crypto.randomUUID(),title:evTitle.value.trim(),date:evDate.value,time:evTime.value,owner:evOwner.value,notes:evNotes.value.trim()});evTitle.value=evTime.value=evNotes.value='';closeEventForm();save()}
+function deleteEvent(id){if(confirm('Delete this event?')){db.events=db.events.filter(x=>x.id!==id);save()}}
+
+saveQuickBtn.onclick=()=>{let t=quickText.value.trim();if(!t)return;db.notes.unshift({id:crypto.randomUUID(),text:t,created:new Date().toISOString()});quickText.value='';save()};
+dictateBtn.onclick=()=>{const SR=window.SpeechRecognition||window.webkitSpeechRecognition;if(!SR)return alert('Dictation is not supported in this browser. Use the keyboard microphone.');const r=new SR();r.lang='en-US';r.onresult=e=>quickText.value=(quickText.value+' '+e.results[0][0].transcript).trim();r.start()};
+
+customerSearch.oninput=renderCustomers;
+function fillCustomerSelect(){eCustomer.innerHTML=db.customers.map(c=>`<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('')}
+function renderCustomers(){const q=customerSearch.value.toLowerCase();const rows=db.customers.filter(c=>(c.name+' '+c.phone+' '+c.address).toLowerCase().includes(q));customerList.innerHTML=rows.length?rows.map(c=>`<div class="item"><strong>${escapeHtml(c.name)}</strong><div class="meta">${escapeHtml(c.phone||'No phone')} · ${escapeHtml(c.address||'No address')}</div>${c.notes?`<div style="margin-top:7px">${escapeHtml(c.notes)}</div>`:''}<div class="row" style="margin-top:10px"><a class="btn" href="tel:${c.phone}">Call</a><button class="btn danger" onclick="deleteCustomer('${c.id}')">Delete</button></div></div>`).join(''):'<div class="empty">No customers yet.</div>'}
+function renderEstimates(){estimateList.innerHTML=db.estimates.length?db.estimates.map(e=>{const c=db.customers.find(x=>x.id===e.customerId);return `<div class="item"><strong>${escapeHtml(e.project)}</strong><div class="meta">${escapeHtml(c?.name||'Unknown')} ${e.amount?'· $'+escapeHtml(e.amount):''}</div><div style="margin-top:8px"><span class="pill ${e.status.toLowerCase()}">${e.status}</span>${e.follow?` <span class="meta">Follow ${fmt(e.follow)}</span>`:''}</div><button class="btn danger" style="margin-top:10px;width:100%" onclick="deleteEstimate('${e.id}')">Delete</button></div>`}).join(''):'<div class="empty">No estimates yet.</div>'}
+function renderEvents(){const rows=[...db.events].sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));eventList.innerHTML=rows.length?rows.map(e=>`<div class="item calendar-day"><strong>${escapeHtml(e.title)}</strong><div class="meta">${fmt(e.date)} ${e.time?e.time:''} · ${escapeHtml(e.owner)}</div>${e.notes?`<div style="margin-top:7px">${escapeHtml(e.notes)}</div>`:''}<button class="btn danger" style="margin-top:10px;width:100%" onclick="deleteEvent('${e.id}')">Delete</button></div>`).join(''):'<div class="empty">No calendar events yet.</div>'}
+function renderToday(){const t=todayISO();const events=db.events.filter(e=>e.date===t);const follows=db.estimates.filter(e=>e.follow===t);todayCount.textContent=events.length;estimateCount.textContent=db.estimates.filter(e=>e.status==='Draft'||e.status==='Sent').length;followCount.textContent=db.estimates.filter(e=>e.follow&&e.follow<=t&&e.status!=='Approved'&&e.status!=='Declined').length;const items=[...events.map(e=>({title:e.title,meta:(e.time||'All day')+' · '+e.owner})),...follows.map(e=>({title:'Follow up: '+e.project,meta:(db.customers.find(c=>c.id===e.customerId)?.name||'Unknown')})),...db.notes.slice(0,3).map(n=>({title:n.text,meta:new Date(n.created).toLocaleString()}))];todayList.innerHTML=items.length?items.map(i=>`<div class="item"><strong>${escapeHtml(i.title)}</strong><div class="meta">${escapeHtml(i.meta)}</div></div>`).join(''):'<div class="empty">Nothing due today.</div>'}
+function renderAll(){renderCustomers();renderEstimates();renderEvents();renderToday();fillCustomerSelect()}
+function exportData(){const blob=new Blob([JSON.stringify(db,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='field-crm-backup.json';a.click();URL.revokeObjectURL(a.href)}
+importFile.onchange=async e=>{try{db=JSON.parse(await e.target.files[0].text());save()}catch{alert('Invalid backup file')}};
+function clearAll(){if(confirm('Clear every customer, estimate, event and note?')){db={customers:[],estimates:[],events:[],notes:[]};save()}}
+function escapeHtml(s=''){return String(s).replace(/[&<>'"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[m]))}
+renderAll();
+if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js');
+</script>
+</body>
+</html>
