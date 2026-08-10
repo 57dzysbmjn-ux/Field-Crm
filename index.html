@@ -88,7 +88,34 @@
       <div id="eventList" class="list"></div>
     </section>
 
-    <section id="settings" class="screen">
+    
+<section id="quickbooks" class="screen">
+  <div class="card">
+    <h2>QuickBooks</h2>
+    <p id="qb-status">Checking connection...</p>
+
+    <button
+      id="qb-connect"
+      class="btn wide"
+      onclick="window.location.href='/api/quickbooks/connect'"
+    >
+      Connect QuickBooks
+    </button>
+
+    <button
+      id="qb-company"
+      class="btn wide"
+      style="display:none;margin-top:10px;"
+      onclick="loadQuickBooksCompany()"
+    >
+      View Company
+    </button>
+
+    <div id="qb-company-info" style="margin-top:12px;"></div>
+  </div>
+</section>
+
+<section id="settings" class="screen">
       <div class="section-title"><h2>Settings</h2></div>
       <div class="card stack">
         <div><strong>Device-only mode</strong><div class="meta">This version stores data on this device. Cloud sync for your wife is the next separate upgrade.</div></div>
@@ -99,7 +126,7 @@
     </section>
   </main>
   <nav class="nav">
-    <button class="active" data-screen="today">TODAY</button><button data-screen="customers">CLIENTS</button><button data-screen="estimates">ESTIMATES</button><button data-screen="calendar">CALENDAR</button><button data-screen="settings">SETTINGS</button>
+    <button class="active" data-screen="today">TODAY</button><button data-screen="customers">CLIENTS</button><button data-screen="estimates">ESTIMATES</button><button data-screen="quickbooks">QUICKBOOKS</button><button data-screen="calendar">CALENDAR</button><button data-screen="settings">SETTINGS</button>
   </nav>
 </div>
 <script>
@@ -136,6 +163,60 @@ function exportData(){const blob=new Blob([JSON.stringify(db,null,2)],{type:'app
 $('importFile').onchange=async e=>{try{db=JSON.parse(await e.target.files[0].text());save()}catch{alert('Invalid backup file')}};
 function clearAll(){if(confirm('Clear every client, estimate, event and note?')){db={customers:[],estimates:[],events:[],notes:[]};save()}}
 function escapeHtml(s=''){return String(s).replace(/[&<>'"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[m]))}
+
+async function checkQuickBooks(){
+  const status = $('qb-status');
+  const connect = $('qb-connect');
+  const companyButton = $('qb-company');
+
+  if(!status || !connect || !companyButton) return;
+
+  try{
+    const response = await fetch('/api/quickbooks/status');
+    const data = await response.json();
+
+    if(data.connected){
+      status.textContent = 'QuickBooks Connected';
+      connect.style.display = 'none';
+      companyButton.style.display = 'block';
+    } else {
+      status.textContent = 'QuickBooks Not Connected';
+      connect.style.display = 'block';
+      companyButton.style.display = 'none';
+    }
+  } catch(error){
+    status.textContent = 'Unable to check QuickBooks connection';
+  }
+}
+
+async function loadQuickBooksCompany(){
+  const output = $('qb-company-info');
+  output.innerHTML = 'Loading...';
+
+  try{
+    const response = await fetch('/api/quickbooks/company');
+    const data = await response.json();
+
+    if(!response.ok){
+      output.innerHTML = '<div class="empty">QuickBooks connection needs to be refreshed.</div>';
+      return;
+    }
+
+    const company = data.CompanyInfo || {};
+
+    output.innerHTML = `
+      <div class="item">
+        <strong>${escapeHtml(company.CompanyName || 'QuickBooks Company')}</strong>
+        ${company.CompanyAddr?.City ? `<div class="meta">${escapeHtml(company.CompanyAddr.City)}</div>` : ''}
+      </div>
+    `;
+  } catch(error){
+    output.innerHTML = '<div class="empty">Could not load QuickBooks company.</div>';
+  }
+}
+
+
+checkQuickBooks();
 renderAll(); if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js');
 </script>
 </body></html>
