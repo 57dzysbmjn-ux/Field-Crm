@@ -133,14 +133,63 @@
 const KEY='field-crm-v2';
 let db=JSON.parse(localStorage.getItem(KEY)||localStorage.getItem('field-crm-v1')||'{"customers":[],"estimates":[],"events":[],"notes":[]}');
 db.customers=db.customers||[]; db.estimates=db.estimates||[]; db.events=db.events||[]; db.notes=db.notes||[];
-const $=id=>document.getElementById(id); const save=()=>{localStorage.setItem(KEY,JSON.stringify(db));renderAll()};
+const $=id=>document.getElementById(id); let editingCustomerId=null; const save=()=>{localStorage.setItem(KEY,JSON.stringify(db));renderAll()};
 const fmt=d=>d?new Date(d+'T12:00:00').toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'}):''; const todayISO=()=>new Date().toISOString().slice(0,10);
 $('todayLabel').textContent=new Date().toLocaleDateString(undefined,{weekday:'short',month:'short',day:'numeric'}).toUpperCase();
 document.querySelectorAll('.nav button').forEach(b=>b.onclick=()=>showScreen(b.dataset.screen));
 function showScreen(id){document.querySelectorAll('.nav button').forEach(x=>x.classList.toggle('active',x.dataset.screen===id));document.querySelectorAll('.screen').forEach(s=>s.classList.toggle('active',s.id===id));window.scrollTo(0,0)}
 function startNewLead(){showScreen('customers');openCustomerForm();$('cName').focus()}
 function openCustomerForm(){ $('customerForm').style.display='block'; if(!$('cNext').value)$('cNext').value=todayISO()} function closeCustomerForm(){$('customerForm').style.display='none'}
-function saveCustomer(){if(!$('cName').value.trim())return alert('Name required');db.customers.unshift({id:crypto.randomUUID(),name:$('cName').value.trim(),phone:$('cPhone').value.trim(),email:$('cEmail').value.trim(),address:$('cAddress').value.trim(),project:$('cProject').value.trim(),status:$('cStatus').value,next:$('cNext').value,notes:$('cNotes').value.trim()});['cName','cPhone','cEmail','cAddress','cProject','cNotes'].forEach(id=>$(id).value='');$('cStatus').value='New Lead';$('cNext').value='';closeCustomerForm();save()}
+function saveCustomer(){
+  if(!$('cName').value.trim()) return alert('Name required');
+
+  const data={
+    name:$('cName').value.trim(),
+    phone:$('cPhone').value.trim(),
+    email:$('cEmail').value.trim(),
+    address:$('cAddress').value.trim(),
+    project:$('cProject').value.trim(),
+    status:$('cStatus').value,
+    next:$('cNext').value,
+    notes:$('cNotes').value.trim()
+  };
+
+  if(editingCustomerId){
+    const customer=db.customers.find(c=>c.id===editingCustomerId);
+    if(customer) Object.assign(customer,data);
+  } else {
+    db.customers.unshift({
+      id:crypto.randomUUID(),
+      ...data
+    });
+  }
+
+  editingCustomerId=null;
+  ['cName','cPhone','cEmail','cAddress','cProject','cNotes'].forEach(id=>$(id).value='');
+  $('cStatus').value='New Lead';
+  $('cNext').value='';
+  closeCustomerForm();
+  save();
+}
+function editCustomer(id){
+  const c=db.customers.find(x=>x.id===id);
+  if(!c) return;
+
+  editingCustomerId=id;
+
+  $('cName').value=c.name||'';
+  $('cPhone').value=c.phone||'';
+  $('cEmail').value=c.email||'';
+  $('cAddress').value=c.address||'';
+  $('cProject').value=c.project||'';
+  $('cStatus').value=c.status||'New Lead';
+  $('cNext').value=c.next||'';
+  $('cNotes').value=c.notes||'';
+
+  openCustomerForm();
+  $('cName').focus();
+}
+
 function deleteCustomer(id){if(confirm('Delete this client or lead?')){db.customers=db.customers.filter(x=>x.id!==id);save()}}
 function openEstimateForm(){fillCustomerSelect();$('estimateForm').style.display='block'} function closeEstimateForm(){$('estimateForm').style.display='none'}
 function saveEstimate(){if(!$('eCustomer').value||!$('eProject').value.trim())return alert('Customer and project required');db.estimates.unshift({id:crypto.randomUUID(),customerId:$('eCustomer').value,project:$('eProject').value.trim(),amount:$('eAmount').value.trim(),status:$('eStatus').value,follow:$('eFollow').value});$('eProject').value=$('eAmount').value=$('eFollow').value='';closeEstimateForm();save()}
@@ -154,7 +203,7 @@ $('customerSearch').oninput=renderCustomers;
 function fillCustomerSelect(){const opts=db.customers.map(c=>`<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('');$('eCustomer').innerHTML=opts;$('evCustomer').innerHTML='<option value="">No customer</option>'+opts}
 function phoneHref(p){return String(p||'').replace(/[^+\d]/g,'')}
 function mapHref(a){return 'https://maps.apple.com/?q='+encodeURIComponent(a||'')}
-function renderCustomers(){const q=$('customerSearch').value.toLowerCase();const rows=db.customers.filter(c=>(c.name+' '+(c.phone||'')+' '+(c.address||'')+' '+(c.project||'')+' '+(c.status||'')).toLowerCase().includes(q));$('customerList').innerHTML=rows.length?rows.map(c=>{const overdue=c.next&&c.next<todayISO()&&!['Won','Lost'].includes(c.status);return `<div class="item ${overdue?'overdue':''}"><strong>${escapeHtml(c.name)}</strong><div class="meta">${escapeHtml(c.project||'No project listed')}</div><div style="margin-top:7px"><span class="pill ${(c.status||'').toLowerCase().replace(' ','-')}">${escapeHtml(c.status||'Lead')}</span>${c.next?` <span class="meta">Next: ${fmt(c.next)}</span>`:''}</div>${c.address?`<div class="meta" style="margin-top:7px">${escapeHtml(c.address)}</div>`:''}${c.notes?`<div style="margin-top:7px">${escapeHtml(c.notes)}</div>`:''}<div class="action-grid">${c.phone?`<a class="btn small" href="tel:${phoneHref(c.phone)}">Call</a><a class="btn small" href="sms:${phoneHref(c.phone)}">Text</a>`:'<span></span><span></span>'}${c.address?`<a class="btn small" href="${mapHref(c.address)}">Directions</a>`:'<span></span>'}</div>${c.email?`<a class="btn small wide" style="margin-top:7px" href="mailto:${escapeHtml(c.email)}">Email</a>`:''}<button class="btn small wide" style="margin-top:7px" onclick="syncCustomerToQuickBooks('${c.id}')">Sync to QuickBooks</button><button class="btn danger small wide" style="margin-top:7px" onclick="deleteCustomer('${c.id}')">Delete</button></div>`}).join(''):'<div class="empty">No clients or leads yet.</div>'}
+function renderCustomers(){const q=$('customerSearch').value.toLowerCase();const rows=db.customers.filter(c=>(c.name+' '+(c.phone||'')+' '+(c.address||'')+' '+(c.project||'')+' '+(c.status||'')).toLowerCase().includes(q));$('customerList').innerHTML=rows.length?rows.map(c=>{const overdue=c.next&&c.next<todayISO()&&!['Won','Lost'].includes(c.status);return `<div class="item ${overdue?'overdue':''}"><strong>${escapeHtml(c.name)}</strong><div class="meta">${escapeHtml(c.project||'No project listed')}</div><div style="margin-top:7px"><span class="pill ${(c.status||'').toLowerCase().replace(' ','-')}">${escapeHtml(c.status||'Lead')}</span>${c.next?` <span class="meta">Next: ${fmt(c.next)}</span>`:''}</div>${c.address?`<div class="meta" style="margin-top:7px">${escapeHtml(c.address)}</div>`:''}${c.notes?`<div style="margin-top:7px">${escapeHtml(c.notes)}</div>`:''}<div class="action-grid">${c.phone?`<a class="btn small" href="tel:${phoneHref(c.phone)}">Call</a><a class="btn small" href="sms:${phoneHref(c.phone)}">Text</a>`:'<span></span><span></span>'}${c.address?`<a class="btn small" href="${mapHref(c.address)}">Directions</a>`:'<span></span>'}</div>${c.email?`<a class="btn small wide" style="margin-top:7px" href="mailto:${escapeHtml(c.email)}">Email</a>`:''}<button class="btn small wide" style="margin-top:7px" onclick="editCustomer('${c.id}')">Edit Customer</button><button class="btn small wide" style="margin-top:7px" onclick="syncCustomerToQuickBooks('${c.id}')">Sync to QuickBooks</button><button class="btn danger small wide" style="margin-top:7px" onclick="deleteCustomer('${c.id}')">Delete</button></div>`}).join(''):'<div class="empty">No clients or leads yet.</div>'}
 function renderEstimates(){$('estimateList').innerHTML=db.estimates.length?db.estimates.map(e=>{const c=db.customers.find(x=>x.id===e.customerId);return `<div class="item"><strong>${escapeHtml(e.project)}</strong><div class="meta">${escapeHtml(c?.name||'Unknown')} ${e.amount?'· $'+escapeHtml(e.amount):''}</div><div style="margin-top:8px"><span class="pill ${e.status.toLowerCase()}">${e.status}</span>${e.follow?` <span class="meta">Follow ${fmt(e.follow)}</span>`:''}</div><button class="btn small wide" style="margin-top:10px" onclick="syncEstimateToQuickBooks('${e.id}')">Sync Estimate to QuickBooks</button><button class="btn danger small wide" style="margin-top:7px" onclick="deleteEstimate('${e.id}')">Delete</button></div>`}).join(''):'<div class="empty">No estimates yet.</div>'}
 function renderEvents(){const rows=[...db.events].sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));$('eventList').innerHTML=rows.length?rows.map(e=>{const c=db.customers.find(x=>x.id===e.customerId);return `<div class="item calendar-day"><strong>${escapeHtml(e.title)}</strong><div class="meta">${fmt(e.date)} ${e.time||''} · ${escapeHtml(e.owner)}</div>${c?`<div class="meta">${escapeHtml(c.name)}</div>`:''}${e.notes?`<div style="margin-top:7px">${escapeHtml(e.notes)}</div>`:''}<button class="btn danger small wide" style="margin-top:10px" onclick="deleteEvent('${e.id}')">Delete</button></div>`}).join(''):'<div class="empty">No calendar events yet.</div>'}
 function renderToday(){const t=todayISO();const events=db.events.filter(e=>e.date===t);const follows=db.estimates.filter(e=>e.follow===t);const nextActions=db.customers.filter(c=>c.next===t&&!['Won','Lost'].includes(c.status));$('todayCount').textContent=events.length+nextActions.length;$('estimateCount').textContent=db.estimates.filter(e=>['Draft','Sent'].includes(e.status)).length;$('followCount').textContent=db.estimates.filter(e=>e.follow&&e.follow<=t&&!['Approved','Declined'].includes(e.status)).length+db.customers.filter(c=>c.next&&c.next<=t&&!['Won','Lost'].includes(c.status)).length;const items=[...nextActions.map(c=>({title:'Next action: '+c.name,meta:c.project||c.status})),...events.map(e=>({title:e.title,meta:(e.time||'All day')+' · '+e.owner})),...follows.map(e=>({title:'Estimate follow-up: '+e.project,meta:(db.customers.find(c=>c.id===e.customerId)?.name||'Unknown')})),...db.notes.slice(0,3).map(n=>({title:n.text,meta:new Date(n.created).toLocaleString()}))];$('todayList').innerHTML=items.length?items.map(i=>`<div class="item"><strong>${escapeHtml(i.title)}</strong><div class="meta">${escapeHtml(i.meta)}</div></div>`).join(''):'<div class="empty">Nothing due today.</div>'}
