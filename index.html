@@ -239,7 +239,7 @@ async function checkQuickBooksInvoiceStatus(id){
   }
 
   try{
-    const response = await fetch(
+    const response = await qbFetch(
       '/api/quickbooks/invoice-status?id=' + encodeURIComponent(estimate.qbInvoiceId)
     );
 
@@ -279,7 +279,7 @@ async function createQuickBooksInvoice(id){
   }
 
   try{
-    const response = await fetch('/api/quickbooks/invoice', {
+    const response = await qbFetch('/api/quickbooks/invoice', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -319,7 +319,7 @@ async function syncEstimateToQuickBooks(id){
   if(!customer) return alert('Customer not found.');
 
   try{
-    const response = await fetch('/api/quickbooks/estimate', {
+    const response = await qbFetch('/api/quickbooks/estimate', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -355,7 +355,7 @@ async function syncCustomerToQuickBooks(id){
   if(!customer) return alert('Customer not found.');
 
   try{
-    const response = await fetch('/api/quickbooks/customer', {
+    const response = await qbFetch('/api/quickbooks/customer', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -390,6 +390,34 @@ async function syncCustomerToQuickBooks(id){
   }
 }
 
+
+async function qbFetch(url, options = {}){
+  let response = await fetch(url, options);
+
+  if(response.status !== 401){
+    return response;
+  }
+
+  const refreshResponse = await fetch('/api/quickbooks/refresh', {
+    method: 'POST'
+  });
+
+  if(!refreshResponse.ok){
+    const status = $('qb-status');
+    const connect = $('qb-connect');
+
+    if(status) status.textContent = 'QuickBooks needs to be reconnected';
+    if(connect){
+      connect.style.display = 'block';
+      connect.textContent = 'Reconnect QuickBooks';
+    }
+
+    return response;
+  }
+
+  return fetch(url, options);
+}
+
 async function checkQuickBooks(){
   const status = $('qb-status');
   const connect = $('qb-connect');
@@ -420,7 +448,7 @@ async function loadQuickBooksCompany(){
   output.innerHTML = 'Loading...';
 
   try{
-    const response = await fetch('/api/quickbooks/company');
+    const response = await qbFetch('/api/quickbooks/company');
     const data = await response.json();
 
     if(!response.ok){
