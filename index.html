@@ -210,7 +210,9 @@ function renderCustomers(){const q=$('customerSearch').value.toLowerCase();const
 function renderEstimates(){$('estimateList').innerHTML=db.estimates.length?db.estimates.map(e=>{const c=db.customers.find(x=>x.id===e.customerId);return `<div class="item"><strong>${escapeHtml(e.project)}</strong><div class="meta">${escapeHtml(c?.name||'Unknown')} ${e.amount?'· $'+escapeHtml(e.amount):''}</div><div style="margin-top:8px"><span class="pill ${e.status.toLowerCase()}">${e.status}</span>${e.follow?` <span class="meta">Follow ${fmt(e.follow)}</span>`:''}</div>${e.qbSynced
   ? `<button class="btn small wide" style="margin-top:10px" disabled>✓ QuickBooks Synced</button>
      ${e.qbInvoiceSynced
-       ? `<button class="btn small wide" style="margin-top:7px" disabled>✓ Invoice Created</button>`
+       ? `<button class="btn small wide" style="margin-top:7px" disabled>✓ Invoice Created</button>
+          <button class="btn small wide" style="margin-top:7px" onclick="checkQuickBooksInvoiceStatus('${e.id}')">Check Payment Status</button>
+          ${e.qbPaymentStatus ? `<div class="meta" style="margin-top:7px">Invoice: ${escapeHtml(e.qbPaymentStatus)}${e.qbBalance !== undefined ? ` · Balance $${escapeHtml(String(e.qbBalance))}` : ''}</div>` : ''}`
        : `<button class="btn small wide" style="margin-top:7px" onclick="createQuickBooksInvoice('${e.id}')">Create QuickBooks Invoice</button>`
      }`
   : `<button class="btn small wide" style="margin-top:10px" onclick="syncEstimateToQuickBooks('${e.id}')">Sync Estimate to QuickBooks</button>`
@@ -225,6 +227,43 @@ function escapeHtml(s=''){return String(s).replace(/[&<>'"]/g,m=>({'&':'&amp;','
 
 
 
+
+
+async function checkQuickBooksInvoiceStatus(id){
+  const estimate = db.estimates.find(e => e.id === id);
+
+  if(!estimate) return alert('Estimate not found.');
+
+  if(!estimate.qbInvoiceId){
+    return alert('No QuickBooks invoice is linked to this estimate.');
+  }
+
+  try{
+    const response = await fetch(
+      '/api/quickbooks/invoice-status?id=' + encodeURIComponent(estimate.qbInvoiceId)
+    );
+
+    const data = await response.json();
+
+    if(!response.ok){
+      console.error(data);
+      return alert(data.error || 'Could not load invoice status.');
+    }
+
+    estimate.qbPaymentStatus = data.status;
+    estimate.qbBalance = data.balance;
+    estimate.qbInvoiceTotal = data.total;
+    save();
+
+    alert(
+      'Invoice status: ' + data.status +
+      ' | Balance: $' + data.balance
+    );
+  } catch(error){
+    console.error(error);
+    alert('Could not reach QuickBooks.');
+  }
+}
 
 async function createQuickBooksInvoice(id){
   const estimate = db.estimates.find(e => e.id === id);
