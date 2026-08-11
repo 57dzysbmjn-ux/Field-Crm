@@ -208,7 +208,11 @@ function renderCustomers(){const q=$('customerSearch').value.toLowerCase();const
   : `<button class="btn small wide" style="margin-top:7px" onclick="syncCustomerToQuickBooks('${c.id}')">Sync to QuickBooks</button>`
 }<button class="btn danger small wide" style="margin-top:7px" onclick="deleteCustomer('${c.id}')">Delete</button></div>`}).join(''):'<div class="empty">No clients or leads yet.</div>'}
 function renderEstimates(){$('estimateList').innerHTML=db.estimates.length?db.estimates.map(e=>{const c=db.customers.find(x=>x.id===e.customerId);return `<div class="item"><strong>${escapeHtml(e.project)}</strong><div class="meta">${escapeHtml(c?.name||'Unknown')} ${e.amount?'· $'+escapeHtml(e.amount):''}</div><div style="margin-top:8px"><span class="pill ${e.status.toLowerCase()}">${e.status}</span>${e.follow?` <span class="meta">Follow ${fmt(e.follow)}</span>`:''}</div>${e.qbSynced
-  ? `<button class="btn small wide" style="margin-top:10px" disabled>✓ QuickBooks Synced</button>`
+  ? `<button class="btn small wide" style="margin-top:10px" disabled>✓ QuickBooks Synced</button>
+     ${e.qbInvoiceSynced
+       ? `<button class="btn small wide" style="margin-top:7px" disabled>✓ Invoice Created</button>`
+       : `<button class="btn small wide" style="margin-top:7px" onclick="createQuickBooksInvoice('${e.id}')">Create QuickBooks Invoice</button>`
+     }`
   : `<button class="btn small wide" style="margin-top:10px" onclick="syncEstimateToQuickBooks('${e.id}')">Sync Estimate to QuickBooks</button>`
 }<button class="btn danger small wide" style="margin-top:7px" onclick="deleteEstimate('${e.id}')">Delete</button></div>`}).join(''):'<div class="empty">No estimates yet.</div>'}
 function renderEvents(){const rows=[...db.events].sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));$('eventList').innerHTML=rows.length?rows.map(e=>{const c=db.customers.find(x=>x.id===e.customerId);return `<div class="item calendar-day"><strong>${escapeHtml(e.title)}</strong><div class="meta">${fmt(e.date)} ${e.time||''} · ${escapeHtml(e.owner)}</div>${c?`<div class="meta">${escapeHtml(c.name)}</div>`:''}${e.notes?`<div style="margin-top:7px">${escapeHtml(e.notes)}</div>`:''}<button class="btn danger small wide" style="margin-top:10px" onclick="deleteEvent('${e.id}')">Delete</button></div>`}).join(''):'<div class="empty">No calendar events yet.</div>'}
@@ -220,6 +224,51 @@ function clearAll(){if(confirm('Clear every client, estimate, event and note?'))
 function escapeHtml(s=''){return String(s).replace(/[&<>'"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[m]))}
 
 
+
+
+async function createQuickBooksInvoice(id){
+  const estimate = db.estimates.find(e => e.id === id);
+
+  if(!estimate) return alert('Estimate not found.');
+
+  const customer = db.customers.find(c => c.id === estimate.customerId);
+
+  if(!customer) return alert('Customer not found.');
+
+  if(!customer.qbId){
+    return alert('Sync this customer to QuickBooks first.');
+  }
+
+  try{
+    const response = await fetch('/api/quickbooks/invoice', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        customerId: customer.qbId,
+        project: estimate.project,
+        amount: estimate.amount
+      })
+    });
+
+    const data = await response.json();
+
+    if(!response.ok){
+      console.error(data);
+      return alert(data.error || 'Could not create QuickBooks invoice.');
+    }
+
+    estimate.qbInvoiceSynced = true;
+    estimate.qbInvoiceId = data.invoice?.Id || null;
+    save();
+
+    alert(estimate.project + ' invoice was created in QuickBooks.');
+  } catch(error){
+    console.error(error);
+    alert('Could not reach QuickBooks.');
+  }
+}
 
 async function syncEstimateToQuickBooks(id){
   const estimate = db.estimates.find(e => e.id === id);
