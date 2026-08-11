@@ -154,7 +154,7 @@ $('customerSearch').oninput=renderCustomers;
 function fillCustomerSelect(){const opts=db.customers.map(c=>`<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('');$('eCustomer').innerHTML=opts;$('evCustomer').innerHTML='<option value="">No customer</option>'+opts}
 function phoneHref(p){return String(p||'').replace(/[^+\d]/g,'')}
 function mapHref(a){return 'https://maps.apple.com/?q='+encodeURIComponent(a||'')}
-function renderCustomers(){const q=$('customerSearch').value.toLowerCase();const rows=db.customers.filter(c=>(c.name+' '+(c.phone||'')+' '+(c.address||'')+' '+(c.project||'')+' '+(c.status||'')).toLowerCase().includes(q));$('customerList').innerHTML=rows.length?rows.map(c=>{const overdue=c.next&&c.next<todayISO()&&!['Won','Lost'].includes(c.status);return `<div class="item ${overdue?'overdue':''}"><strong>${escapeHtml(c.name)}</strong><div class="meta">${escapeHtml(c.project||'No project listed')}</div><div style="margin-top:7px"><span class="pill ${(c.status||'').toLowerCase().replace(' ','-')}">${escapeHtml(c.status||'Lead')}</span>${c.next?` <span class="meta">Next: ${fmt(c.next)}</span>`:''}</div>${c.address?`<div class="meta" style="margin-top:7px">${escapeHtml(c.address)}</div>`:''}${c.notes?`<div style="margin-top:7px">${escapeHtml(c.notes)}</div>`:''}<div class="action-grid">${c.phone?`<a class="btn small" href="tel:${phoneHref(c.phone)}">Call</a><a class="btn small" href="sms:${phoneHref(c.phone)}">Text</a>`:'<span></span><span></span>'}${c.address?`<a class="btn small" href="${mapHref(c.address)}">Directions</a>`:'<span></span>'}</div>${c.email?`<a class="btn small wide" style="margin-top:7px" href="mailto:${escapeHtml(c.email)}">Email</a>`:''}<button class="btn danger small wide" style="margin-top:7px" onclick="deleteCustomer('${c.id}')">Delete</button></div>`}).join(''):'<div class="empty">No clients or leads yet.</div>'}
+function renderCustomers(){const q=$('customerSearch').value.toLowerCase();const rows=db.customers.filter(c=>(c.name+' '+(c.phone||'')+' '+(c.address||'')+' '+(c.project||'')+' '+(c.status||'')).toLowerCase().includes(q));$('customerList').innerHTML=rows.length?rows.map(c=>{const overdue=c.next&&c.next<todayISO()&&!['Won','Lost'].includes(c.status);return `<div class="item ${overdue?'overdue':''}"><strong>${escapeHtml(c.name)}</strong><div class="meta">${escapeHtml(c.project||'No project listed')}</div><div style="margin-top:7px"><span class="pill ${(c.status||'').toLowerCase().replace(' ','-')}">${escapeHtml(c.status||'Lead')}</span>${c.next?` <span class="meta">Next: ${fmt(c.next)}</span>`:''}</div>${c.address?`<div class="meta" style="margin-top:7px">${escapeHtml(c.address)}</div>`:''}${c.notes?`<div style="margin-top:7px">${escapeHtml(c.notes)}</div>`:''}<div class="action-grid">${c.phone?`<a class="btn small" href="tel:${phoneHref(c.phone)}">Call</a><a class="btn small" href="sms:${phoneHref(c.phone)}">Text</a>`:'<span></span><span></span>'}${c.address?`<a class="btn small" href="${mapHref(c.address)}">Directions</a>`:'<span></span>'}</div>${c.email?`<a class="btn small wide" style="margin-top:7px" href="mailto:${escapeHtml(c.email)}">Email</a>`:''}<button class="btn small wide" style="margin-top:7px" onclick="syncCustomerToQuickBooks('${c.id}')">Sync to QuickBooks</button><button class="btn danger small wide" style="margin-top:7px" onclick="deleteCustomer('${c.id}')">Delete</button></div>`}).join(''):'<div class="empty">No clients or leads yet.</div>'}
 function renderEstimates(){$('estimateList').innerHTML=db.estimates.length?db.estimates.map(e=>{const c=db.customers.find(x=>x.id===e.customerId);return `<div class="item"><strong>${escapeHtml(e.project)}</strong><div class="meta">${escapeHtml(c?.name||'Unknown')} ${e.amount?'· $'+escapeHtml(e.amount):''}</div><div style="margin-top:8px"><span class="pill ${e.status.toLowerCase()}">${e.status}</span>${e.follow?` <span class="meta">Follow ${fmt(e.follow)}</span>`:''}</div><button class="btn danger small wide" style="margin-top:10px" onclick="deleteEstimate('${e.id}')">Delete</button></div>`}).join(''):'<div class="empty">No estimates yet.</div>'}
 function renderEvents(){const rows=[...db.events].sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));$('eventList').innerHTML=rows.length?rows.map(e=>{const c=db.customers.find(x=>x.id===e.customerId);return `<div class="item calendar-day"><strong>${escapeHtml(e.title)}</strong><div class="meta">${fmt(e.date)} ${e.time||''} · ${escapeHtml(e.owner)}</div>${c?`<div class="meta">${escapeHtml(c.name)}</div>`:''}${e.notes?`<div style="margin-top:7px">${escapeHtml(e.notes)}</div>`:''}<button class="btn danger small wide" style="margin-top:10px" onclick="deleteEvent('${e.id}')">Delete</button></div>`}).join(''):'<div class="empty">No calendar events yet.</div>'}
 function renderToday(){const t=todayISO();const events=db.events.filter(e=>e.date===t);const follows=db.estimates.filter(e=>e.follow===t);const nextActions=db.customers.filter(c=>c.next===t&&!['Won','Lost'].includes(c.status));$('todayCount').textContent=events.length+nextActions.length;$('estimateCount').textContent=db.estimates.filter(e=>['Draft','Sent'].includes(e.status)).length;$('followCount').textContent=db.estimates.filter(e=>e.follow&&e.follow<=t&&!['Approved','Declined'].includes(e.status)).length+db.customers.filter(c=>c.next&&c.next<=t&&!['Won','Lost'].includes(c.status)).length;const items=[...nextActions.map(c=>({title:'Next action: '+c.name,meta:c.project||c.status})),...events.map(e=>({title:e.title,meta:(e.time||'All day')+' · '+e.owner})),...follows.map(e=>({title:'Estimate follow-up: '+e.project,meta:(db.customers.find(c=>c.id===e.customerId)?.name||'Unknown')})),...db.notes.slice(0,3).map(n=>({title:n.text,meta:new Date(n.created).toLocaleString()}))];$('todayList').innerHTML=items.length?items.map(i=>`<div class="item"><strong>${escapeHtml(i.title)}</strong><div class="meta">${escapeHtml(i.meta)}</div></div>`).join(''):'<div class="empty">Nothing due today.</div>'}
@@ -163,6 +163,40 @@ function exportData(){const blob=new Blob([JSON.stringify(db,null,2)],{type:'app
 $('importFile').onchange=async e=>{try{db=JSON.parse(await e.target.files[0].text());save()}catch{alert('Invalid backup file')}};
 function clearAll(){if(confirm('Clear every client, estimate, event and note?')){db={customers:[],estimates:[],events:[],notes:[]};save()}}
 function escapeHtml(s=''){return String(s).replace(/[&<>'"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[m]))}
+
+
+async function syncCustomerToQuickBooks(id){
+  const customer = db.customers.find(c => c.id === id);
+
+  if(!customer) return alert('Customer not found.');
+
+  try{
+    const response = await fetch('/api/quickbooks/customer', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        name: customer.name,
+        phone: customer.phone,
+        email: customer.email,
+        address: customer.address
+      })
+    });
+
+    const data = await response.json();
+
+    if(!response.ok){
+      console.error(data);
+      return alert('Could not sync customer to QuickBooks.');
+    }
+
+    alert(customer.name + ' was added to QuickBooks.');
+  } catch(error){
+    console.error(error);
+    alert('Could not reach QuickBooks.');
+  }
+}
 
 async function checkQuickBooks(){
   const status = $('qb-status');
