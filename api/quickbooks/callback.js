@@ -1,3 +1,5 @@
+import { saveQuickBooksTokens } from "./db.js";
+
 function getCookies(req) {
   const cookieHeader = req.headers.cookie || "";
 
@@ -19,7 +21,6 @@ function getCookies(req) {
 export default async function handler(req, res) {
   try {
     const { code, realmId, state } = req.query;
-
     const cookies = getCookies(req);
 
     if (!state || state !== cookies.qb_oauth_state) {
@@ -32,7 +33,7 @@ export default async function handler(req, res) {
 
     const redirectUri =
       process.env.QB_REDIRECT_URI ||
-      "https://field-crm-rosa.vercel.app/api/quickbooks/callback";
+      "https://field-crm-rose.vercel.app/api/quickbooks/callback";
 
     const credentials = Buffer.from(
       `${process.env.QB_CLIENT_ID}:${process.env.QB_CLIENT_SECRET}`
@@ -62,10 +63,21 @@ export default async function handler(req, res) {
       return res.status(500).json(data);
     }
 
+    const expiresAt = new Date(
+      Date.now() + Number(data.expires_in || 3600) * 1000
+    ).toISOString();
+
+    await saveQuickBooksTokens({
+      realmId,
+      accessToken: data.access_token,
+      refreshToken: data.refresh_token,
+      expiresAt
+    });
+
     res.setHeader("Set-Cookie", [
       `qb_access=${encodeURIComponent(data.access_token)}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=3500`,
-      `qb_refresh=${encodeURIComponent(data.refresh_token)}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=5184000`,
-      `qb_realm=${encodeURIComponent(realmId)}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=5184000`,
+      `qb_refresh=${encodeURIComponent(data.refresh_token)}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=8640000`,
+      `qb_realm=${encodeURIComponent(realmId)}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=8640000`,
       `qb_oauth_state=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0`
     ]);
 
@@ -75,4 +87,3 @@ export default async function handler(req, res) {
     res.status(500).send("Could not connect to QuickBooks.");
   }
 }
-

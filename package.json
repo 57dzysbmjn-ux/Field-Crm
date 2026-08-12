@@ -1,0 +1,24 @@
+{
+  "name": "oswald-crm",
+  "version": "1.0.0",
+  "description": "Adds New Lead capture, email, project/status/next-action fields, one-touch call/text/directions, customer-linked calendar events, and automatic next-action reminders.",
+  "main": "sw.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/57dzysbmjn-ux/Field-Crm.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/57dzysbmjn-ux/Field-Crm/issues"
+  },
+  "homepage": "https://github.com/57dzysbmjn-ux/Field-Crm#readme",
+  "dependencies": {
+    "@neondatabase/serverless": "^1.1.0"
+  }
+}
