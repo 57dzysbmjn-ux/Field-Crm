@@ -1,21 +1,4 @@
-function getCookies(req) {
-  const cookieHeader = req.headers.cookie || "";
-
-  return Object.fromEntries(
-    cookieHeader
-      .split(";")
-      .map(cookie => cookie.trim())
-      .filter(Boolean)
-      .map(cookie => {
-        const index = cookie.indexOf("=");
-
-        return [
-          cookie.substring(0, index),
-          decodeURIComponent(cookie.substring(index + 1))
-        ];
-      })
-  );
-}
+import { getDb } from "./db.js";
 
 function escapeQueryValue(value) {
   return String(value || "")
@@ -29,9 +12,18 @@ export default async function handler(req, res) {
   }
 
   try {
-    const cookies = getCookies(req);
+    const sql = getDb();
 
-    if (!cookies.qb_access || !cookies.qb_realm) {
+const rows = await sql\`
+  SELECT realm_id, access_token
+  FROM quickbooks_tokens
+  ORDER BY updated_at DESC
+  LIMIT 1
+\`;
+
+const tokens = rows[0];
+
+    if (!tokens) {
       return res.status(401).json({
         error: "QuickBooks is not connected."
       });
@@ -58,10 +50,10 @@ export default async function handler(req, res) {
     );
 
     const existingResponse = await fetch(
-      `${baseUrl}/v3/company/${cookies.qb_realm}/query?query=${query}`,
+      `${baseUrl}/v3/company/${tokens.realm_id}/query?query=${query}`,
       {
         headers: {
-          Authorization: `Bearer ${cookies.qb_access}`,
+          Authorization: `Bearer ${tokens.access_token}`,
           Accept: "application/json"
         }
       }
@@ -102,11 +94,11 @@ export default async function handler(req, res) {
     );
 
     const response = await fetch(
-      `${baseUrl}/v3/company/${cookies.qb_realm}/customer`,
+      `${baseUrl}/v3/company/${tokens.realm_id}/customer`,
       {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${cookies.qb_access}`,
+          Authorization: `Bearer ${tokens.access_token}`,
           Accept: "application/json",
           "Content-Type": "application/json"
         },
